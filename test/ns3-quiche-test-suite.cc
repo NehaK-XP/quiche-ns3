@@ -1,86 +1,67 @@
-// Include a header file from your module to test.
-#include "ns3/ns3-quiche.h"
-
-// An essential include is test.h
 #include "ns3/test.h"
+#include "ns3/log.h"
+#include <quiche.h> // Includes Cloudflare's quiche FFI header
 
-// Do not put your test classes in namespace ns3.  You may find it useful
-// to use the using directive to access the ns3 namespace directly
 using namespace ns3;
 
-// Add a doxygen group for tests.
-// If you have more than one test, this should be in only one of them.
-/**
- * @defgroup ns3-quiche-tests Tests for ns3-quiche
- * @ingroup ns3-quiche
- * @ingroup tests
- */
+NS_LOG_COMPONENT_DEFINE ("Ns3QuicheTest");
 
-// This is an example TestCase.
-/**
- * @ingroup ns3-quiche-tests
- * Test case for feature 1
- */
-class Ns3QuicheTestCase1 : public TestCase
+// Simple test case to verify quiche library integration
+class Ns3QuicheTestCase : public TestCase
 {
-  public:
-    Ns3QuicheTestCase1();
-    ~Ns3QuicheTestCase1() override;
+public:
+  Ns3QuicheTestCase ();
+  virtual ~Ns3QuicheTestCase ();
 
-  private:
-    void DoRun() override;
+private:
+  virtual void DoRun (void);
 };
 
-// Add some help text to this case to describe what it is intended to test
-Ns3QuicheTestCase1::Ns3QuicheTestCase1()
-    : TestCase("Ns3Quiche test case (does nothing)")
+Ns3QuicheTestCase::Ns3QuicheTestCase ()
+  : TestCase ("Ns3Quiche basic integration test")
 {
 }
 
-// This destructor does nothing but we include it as a reminder that
-// the test case should clean up after itself
-Ns3QuicheTestCase1::~Ns3QuicheTestCase1()
+Ns3QuicheTestCase::~Ns3QuicheTestCase ()
 {
 }
 
-//
-// This method is the pure virtual method from class TestCase that every
-// TestCase must implement
-//
 void
-Ns3QuicheTestCase1::DoRun()
+Ns3QuicheTestCase::DoRun (void)
 {
-    // A wide variety of test macros are available in src/core/test.h
-    NS_TEST_ASSERT_MSG_EQ(true, true, "true doesn't equal true for some reason");
-    // Use this one for floating point comparisons
-    NS_TEST_ASSERT_MSG_EQ_TOL(0.01, 0.01, 0.001, "Numbers are not equal within tolerance");
+  // 1. Test calling a basic function from quiche.h
+  // quiche_version() returns the version string of the underlying rust quiche library
+  const char* version = quiche_version();
+  
+  NS_LOG_INFO ("==========================================");
+  NS_LOG_INFO ("Successfully linked Cloudflare Quiche!");
+  NS_LOG_INFO ("Quiche Version: " << (version ? version : "Unknown"));
+  NS_LOG_INFO ("==========================================");
+
+  // Ensure that the version string is successfully fetched
+  NS_TEST_ASSERT_MSG_NOT_NULL (version, "Failed to retrieve Quiche version via FFI");
+
+  // 2. Test initializing a quiche configuration object
+  // QUICHE_PROTOCOL_VERSION corresponds to the supported IETF QUIC version
+  quiche_config *config = quiche_config_new (QUICHE_PROTOCOL_VERSION);
+  NS_TEST_ASSERT_MSG_NOT_NULL (config, "Failed to create quiche_config");
+
+  // Clean up config object
+  quiche_config_free (config);
 }
 
-// The TestSuite class names the TestSuite, identifies what type of TestSuite,
-// and enables the TestCases to be run.  Typically, only the constructor for
-// this class must be defined
-
-/**
- * @ingroup ns3-quiche-tests
- * TestSuite for module ns3-quiche
- */
+// The Test Suite that registers the test case
 class Ns3QuicheTestSuite : public TestSuite
 {
-  public:
-    Ns3QuicheTestSuite();
+public:
+  Ns3QuicheTestSuite ();
 };
 
-// Type for TestSuite can be UNIT, SYSTEM, EXAMPLE, or PERFORMANCE
-Ns3QuicheTestSuite::Ns3QuicheTestSuite()
-    : TestSuite("ns3-quiche", Type::UNIT)
+Ns3QuicheTestSuite::Ns3QuicheTestSuite ()
+  : TestSuite ("ns3-quiche", UNIT)
 {
-    // Duration for TestCase can be QUICK, EXTENSIVE or TAKES_FOREVER
-    AddTestCase(new Ns3QuicheTestCase1, TestCase::Duration::QUICK);
+  AddTestCase (new Ns3QuicheTestCase, TestCase::QUICK);
 }
 
-// Do not forget to allocate an instance of this TestSuite
-/**
- * @ingroup ns3-quiche-tests
- * Static variable for test initialization
- */
-static Ns3QuicheTestSuite sns3QuicheTestSuite;
+// Static instance to register the test suite
+static Ns3QuicheTestSuite s_ns3QuicheTestSuite;
