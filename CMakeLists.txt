@@ -14,7 +14,7 @@ set(QUICHE_LIB_SEARCH_PATHS
 )
 
 find_library(QUICHE_LIB
-    NAMES quiche
+    NAMES libquiche.a
     PATHS ${QUICHE_LIB_SEARCH_PATHS}
     NO_DEFAULT_PATH
 )

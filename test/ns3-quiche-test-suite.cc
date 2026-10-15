@@ -1,67 +1,59 @@
+/*
+ * Smoke test: verifies quiche is found, linked and callable from ns-3.
+ * Place at: src/ns3-quiche/test/ns3-quiche-test-suite.cc
+ */
 #include "ns3/test.h"
-#include "ns3/log.h"
-#include <quiche.h> // Includes Cloudflare's quiche FFI header
+
+#include <quiche.h>
+
+#include <cstring>
+#include <iostream>
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE ("Ns3QuicheTest");
-
-// Simple test case to verify quiche library integration
-class Ns3QuicheTestCase : public TestCase
+class QuicheLinkTestCase : public TestCase
 {
-public:
-  Ns3QuicheTestCase ();
-  virtual ~Ns3QuicheTestCase ();
+  public:
+    QuicheLinkTestCase()
+        : TestCase("quiche FFI links and basic calls work")
+    {
+    }
 
-private:
-  virtual void DoRun (void);
+  private:
+    void DoRun() override
+    {
+        // 1. Simplest possible call: version string
+        const char* version = quiche_version();
+        NS_TEST_ASSERT_MSG_NE(version, nullptr, "quiche_version() returned null");
+        NS_TEST_ASSERT_MSG_GT(std::strlen(version), 0u, "quiche_version() returned empty string");
+        std::cout << "[quiche-ns3] quiche version: " << version << std::endl;
+
+        // 2. Create and configure a quiche_config, then free it
+        quiche_config* config = quiche_config_new(QUICHE_PROTOCOL_VERSION);
+        NS_TEST_ASSERT_MSG_NE(config, nullptr, "quiche_config_new() failed");
+
+        // ALPN: length-prefixed "h3"
+        static const uint8_t alpn[] = {0x02, 'h', '3'};
+        int rc = quiche_config_set_application_protos(config, alpn, sizeof(alpn));
+        NS_TEST_ASSERT_MSG_EQ(rc, 0, "set_application_protos failed");
+
+        quiche_config_set_max_idle_timeout(config, 5000);
+        quiche_config_set_initial_max_data(config, 10000000);
+        quiche_config_set_initial_max_stream_data_bidi_local(config, 1000000);
+        quiche_config_set_initial_max_streams_bidi(config, 100);
+
+        quiche_config_free(config);
+    }
 };
 
-Ns3QuicheTestCase::Ns3QuicheTestCase ()
-  : TestCase ("Ns3Quiche basic integration test")
+class QuicheTestSuite : public TestSuite
 {
-}
-
-Ns3QuicheTestCase::~Ns3QuicheTestCase ()
-{
-}
-
-void
-Ns3QuicheTestCase::DoRun (void)
-{
-  // 1. Test calling a basic function from quiche.h
-  // quiche_version() returns the version string of the underlying rust quiche library
-  const char* version = quiche_version();
-  
-  NS_LOG_INFO ("==========================================");
-  NS_LOG_INFO ("Successfully linked Cloudflare Quiche!");
-  NS_LOG_INFO ("Quiche Version: " << (version ? version : "Unknown"));
-  NS_LOG_INFO ("==========================================");
-
-  // Ensure that the version string is successfully fetched
-  NS_TEST_ASSERT_MSG_NOT_NULL (version, "Failed to retrieve Quiche version via FFI");
-
-  // 2. Test initializing a quiche configuration object
-  // QUICHE_PROTOCOL_VERSION corresponds to the supported IETF QUIC version
-  quiche_config *config = quiche_config_new (QUICHE_PROTOCOL_VERSION);
-  NS_TEST_ASSERT_MSG_NOT_NULL (config, "Failed to create quiche_config");
-
-  // Clean up config object
-  quiche_config_free (config);
-}
-
-// The Test Suite that registers the test case
-class Ns3QuicheTestSuite : public TestSuite
-{
-public:
-  Ns3QuicheTestSuite ();
+  public:
+    QuicheTestSuite()
+        : TestSuite("ns3-quiche", Type::UNIT)
+    {
+        AddTestCase(new QuicheLinkTestCase, Duration::QUICK);
+    }
 };
 
-Ns3QuicheTestSuite::Ns3QuicheTestSuite ()
-  : TestSuite ("ns3-quiche", UNIT)
-{
-  AddTestCase (new Ns3QuicheTestCase, TestCase::QUICK);
-}
-
-// Static instance to register the test suite
-static Ns3QuicheTestSuite s_ns3QuicheTestSuite;
+static QuicheTestSuite g_quicheTestSuite;
